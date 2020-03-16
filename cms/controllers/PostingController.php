@@ -107,7 +107,7 @@ class PostingController extends Controller
         'end_date' => $end_date]);
     }
 
-// logic
+    // logic 
 
     public function actionFilterdateView()
     {
