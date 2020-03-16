@@ -1,0 +1,60 @@
+{
+    "name": "yiisoft/yii2-app-advanced",
+    "description": "Yii 2 Advanced Project Template",
+    "keywords": ["yii2", "framework", "advanced", "project template"],
+    "homepage": "http://www.yiiframework.com/",
+    "type": "project",
+    "license": "BSD-3-Clause",
+    "support": {
+        "issues": "https://github.com/yiisoft/yii2/issues?state=open",
+        "forum": "http://www.yiiframework.com/forum/",
+        "wiki": "http://www.yiiframework.com/wiki/",
+        "irc": "irc://irc.freenode.net/yii",
+        "source": "https://github.com/yiisoft/yii2"
+    },
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=5.6.0",
+        "yiisoft/yii2": "~2.0.14",
+        "yiisoft/yii2-bootstrap": "~2.0.0",
+        "yiisoft/yii2-swiftmailer": "~2.0.0 || ~2.1.0",
+        "kartik-v/yii2-widget-select2": "@dev",
+        "kartik-v/yii2-export": "@dev",
+        "kartik-v/yii2-grid": "dev-master",
+        "2amigos/yii2-table-export-widget": "*",
+        "2amigos/yii2-highcharts-widget": "~1.0",
+        "james-heinrich/getid3": "^1.9",
+        "php-ffmpeg/php-ffmpeg": "^0.14.0",
+        "tpmanc/yii2-imagick": "*"
+    },
+    "require-dev": {
+        "yiisoft/yii2-debug": "~2.1.0",
+        "yiisoft/yii2-gii": "~2.1.0",
+        "yiisoft/yii2-faker": "~2.0.0",
+        "codeception/base": "^2.4.0",
+        "phpunit/phpunit": "~5.7.27 || ~6.5.5",
+        "codeception/verify": "~0.5.0 || ~1.1.0",
+        "symfony/browser-kit": ">=2.7 <=4.2.4",
+        "tpmanc/yii2-imagick": "*"
+    },
+    "suggest": {
+        "ext-com_dotnet": "COM extension is required when loading files larger than 2GB on Windows.",
+        "ext-ctype": "ctype extension is required when loading files larger than 2GB on 32-bit PHP (also on 64-bit PHP on Windows) or executing `getid3_lib::CopyTagsToComments`.",
+        "ext-exif": "EXIF extension is required for graphic modules.",
+        "ext-json": "JSON extension is required to analyze Apple Quicktime videos.",
+        "ext-rar": "RAR extension is required for RAR archive module.",
+        "ext-zlib": "Zlib extension is required for archive modules and compressed metadata."
+    },
+    "config": {
+        "process-timeout": 1800,
+        "fxp-asset": {
+            "enabled": false
+        }
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
+        }
+    ]
+}

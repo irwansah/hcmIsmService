@@ -1,0 +1,2 @@
+suite_namespace: cms\tests\unit
+actor: UnitTester
