@@ -43,7 +43,7 @@ class EmployeeController extends Controller
         $headers = Yii::$app->request->headers;
         $search = Yii::$app->request->getQueryParam('search');
 
-        $limit = 10;
+        $limit = 100;
 
         if(empty($_GET['token'])){
            Yii::$app->response->statusCode = 400;
@@ -61,15 +61,18 @@ class EmployeeController extends Controller
             $length=strlen($search);
             $word=str_word_count($search);
 
-            if($length<=3){
-                $data = Employee::find()->select(["SUBSTRING_INDEX(`nama`,' ',$word) as nama","nik","person_id","email"])
-                ->where(['!=','person_id',$_GET['token'] ?? ""])
-                ->andWhere(['LIKE','nama',$search.'%', false]);  
-            }else{
+            // if($length<=3){
+                // $data = Employee::find()->select(["SUBSTRING_INDEX(`nama`,' ',$word) as nama","nik","person_id","email"])
+                // ->where(['!=','person_id',$_GET['token'] ?? ""])
+                // ->andWhere(['LIKE','nama',$search.'%', false]);  
+            //     $data = Employee::find()->select(["nama","nik","person_id","email"])
+            //     ->where(['!=','person_id',$_GET['token'] ?? ""])
+            //     ->andWhere(['LIKE','nama',$search.'%', false]); 
+            // }else{
                 $data = Employee::find()->select(["nama","nik","person_id","email"])
                 ->where(['!=','person_id',$_GET['token'] ?? ""])
                 ->andWhere(['LIKE','nama',$search.'%', false]); 
-            }
+            // }
             
 
         }else{
