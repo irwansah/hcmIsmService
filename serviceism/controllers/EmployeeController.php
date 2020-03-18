@@ -43,7 +43,7 @@ class EmployeeController extends Controller
         $headers = Yii::$app->request->headers;
         $search = Yii::$app->request->getQueryParam('search');
 
-        $limit = 100;
+        $limit = 10;
 
         if(empty($_GET['token'])){
            Yii::$app->response->statusCode = 400;
