@@ -231,7 +231,25 @@ class PostingController extends Controller
             return $response;
         }
 
+        $unique=date('y-m-d').time();
         
+            $imgdata = base64_decode($raw->video);
+
+            $f = finfo_open();
+
+            $mtps = finfo_buffer($f, $imgdata, FILEINFO_MIME_TYPE);
+
+            $typess = explode("/",$mtps);
+
+            if($typess[0] != "video"){
+                    Yii::$app->response->statusCode = 400;
+                            $response['code']=400;
+                            $response['message']="File type not allowed.";
+                            $response['data']=[];
+                            return $response;
+
+            }
+            
         $path_video="video_base64";
         $path_thumbnail="thumbnail";
         $video_txt_name="video_".date("sih_dmy_").$token.".txt";
@@ -243,21 +261,32 @@ class PostingController extends Controller
         
         
         $FFMpeg = FFMpeg::create([
-            'ffmpeg.binaries'  => '/usr/local/bin/ffmpeg', // the path to the FFMpeg binary
-             'ffprobe.binaries' => '/usr/local/bin/ffprobe', // the path to the FFProbe binary
-            //'ffmpeg.binaries'  => 'C:\ffmpeg\bin\ffmpeg.exe', // the path to the FFMpeg binary
-            //'ffprobe.binaries' => 'C:\ffmpeg\bin\ffprobe.exe', // the path to the FFProbe binary
+            'ffmpeg.binaries'  => Yii::$app->params['ffmpeg_bin'], // the path to the FFMpeg binary
+            'ffprobe.binaries' => Yii::$app->params['ffprobe_bin'], // the path to the FFProbe binary
             'timeout'          => 3600, // the timeout for the underlying process
             'ffmpeg.threads'   => 12,   // the number of threads that FFMpeg should use
         ]);
 
+
+        // delete all files temp spam
+            /* this block code for delete recent temp files.{
+            // to dangerous
+            // $files = glob('temp/*'); // get all file names
+            // foreach($files as $file){ // iterate files
+            // if(is_file($file))
+            //     unlink($file); // delete file
+            // }
+            }*/
+
+            
+
         $getID3 = new \getID3;
         
         $var=base64_decode($raw->video);
-        $fp = fopen('temp/'.$token.'.'.$mime_type, 'w');
+        $fp = fopen('temp/'.$unique.$token.'.'.$mime_type, 'w');
         fwrite($fp,$var);
         fclose($fp);
-        chmod('temp/'.$token.'.'.$mime_type, 0777);
+        chmod('temp/'.$unique.$token.'.'.$mime_type, 0777);
         
         
         // bitrate list
@@ -269,7 +298,7 @@ class PostingController extends Controller
         $bit1080p="5000k";
         $bitrate="";
 
-        $info_video=$getID3->analyze('temp/'.$token.'.'.$mime_type);
+        $info_video=$getID3->analyze('temp/'.$unique.$token.'.'.$mime_type);
     
         // set bitrate .. this step for use validation
         if($info_video['filesize']>3000000){
@@ -284,19 +313,18 @@ class PostingController extends Controller
         }
 
 
-        $path_video_compress="temp/".$token.".".$mime_type;
+        $path_video_compress="temp/".$unique.$token.".".$mime_type;
          
         
         
-        //$command = "ffmpeg -i $path_video_compress -b:v $bitrate -bufsize $bitrate temp/compress_$token.$mime_type";
-        $command = "/usr/local/bin/ffmpeg -i ".$path_video_compress." -b ".$bitrate." temp/compress_".$token.".".$mime_type."";
-        // $command = "/usr/local/bin/ffmpeg -i $path_video_compress -b:v $bitrate -bufsize $bitrate temp/compress_$token.$mime_type";
+        // $command = Yii::$app->params['ffmpeg_bin']." -i $path_video_compress -b:v $bitrate -bufsize $bitrate temp/compress_$unique$token.$mime_type";
+        $command = Yii::$app->params['ffmpeg_bin']." -i ".$path_video_compress." -b ".$bitrate." temp/compress_".$unique.$token.".".$mime_type."";
         
         // need permission.
         $outpustcompress = "";
-        $exed =  exec($command." 2>&1",$outpustcompress);
-        
-        $path = "temp/compress_".$token.".".$mime_type;
+        $exed = exec($command." 2>&1",$outpustcompress);
+
+        $path = "temp/compress_".$unique.$token.".".$mime_type;
         $type = pathinfo($path, PATHINFO_EXTENSION);
         $data = file_get_contents($path);
         $base64video = base64_encode($data);
@@ -317,13 +345,13 @@ class PostingController extends Controller
         }
 
         
-        $file=$getID3->analyze('temp/compress_'.$token.'.'.$mime_type);
+        $file=$getID3->analyze('temp/compress_'.$unique.$token.'.'.$mime_type);
 
         $duration=round($file['playtime_seconds']);
         
-        $path = 'temp/'.$token.'.jpg';
+        $path = 'temp/'.$unique.$token.'.jpg';
 
-        $video = $FFMpeg->open('temp/compress_'.$token.'.'.$mime_type);
+        $video = $FFMpeg->open('temp/compress_'.$unique.$token.'.'.$mime_type);
         $video->frame(\FFMpeg\Coordinate\TimeCode::fromSeconds(1))
         ->save($path);
         
@@ -345,9 +373,9 @@ class PostingController extends Controller
             return $response;
         }
 
-        unlink('temp/'.$token.'.'.$mime_type);
-        unlink('temp/compress_'.$token.'.'.$mime_type);
-        unlink('temp/'.$token.'.jpg');
+        unlink('temp/'.$unique.$token.'.'.$mime_type);
+        unlink('temp/compress_'.$unique.$token.'.'.$mime_type);
+        unlink('temp/'.$unique.$token.'.jpg');
 
         
 
@@ -416,297 +444,6 @@ class PostingController extends Controller
     }
 
 
-    public function actionContentVideoOLd()
-    {
-        //echo "ee";die;
-        $parse = new AttachmentFile;
-        $helper = new Helper;
-
-        $request = Yii::$app->request;
-        $post = Yii::$app->request->post();
-        //  echo json_encode($request->getRawBody());exit;      
-        $raw = json_decode($request->getRawBody());
-        //echo json_encode($raw);exit;
-        $headers = Yii::$app->request->headers;
-
-        $token=$_GET['token'];
-
-        $employee = Employee::find()->where(['=','person_id', $token ?? ""])
-                ->one();
-
-        if(empty($employee)){
-            Yii::$app->response->statusCode = 404;
-            $response['code']=404;
-            $response['message']="Employee not found.";
-            $response['data']=[];
-            return $response;
-        }
-
-
-        $person_id = $employee['person_id'] ?? null;
-        $owner_nama = $employee['nama'] ?? "";
-        $owner_email = $employee['email'] ?? "";
-        $nik = $employee['nik'] ?? "";
-
-        if($_SERVER['REQUEST_METHOD'] !='POST'){
-            Yii::$app->response->statusCode = 405;
-            $response['code']=405;
-            $response['message']="Method not allowed.";
-            $response['data']=[];
-            return $response;
-        }
-
-        $path_video="video_base64";
-        $path_thumbnail="thumbnail";
-        $video_txt_name="video_".date("sih_dmy_").$token.".txt";
-        $thumbnail_txt_name="thumbnail_".date("sih_dmy_").$token.".txt";
-        $mt=explode("/",$raw->mime);
-        $mime_type=end($mt);
-        
-
-        $model = new Posting;
-        $model->id_group = $raw->group;
-        $model->owner_id = $person_id;
-        $model->active = 1;
-        $model->like_count = 0;
-        $model->views_count = 0;
-        $model->comment_count = 0;
-        $model->type_posting = 3;
-        $model->group_name = $raw->group_name ?? "";
-        $model->owner_name = $owner_nama;
-        $model->nik = $nik;
-        $model->caption = $raw->caption;
-        $model->url_content = $video_txt_name;
-        $model->thumnail_content = $thumbnail_txt_name;
-        $model->text = "";  
-
-        try {
-
-            if($model->save()){
-
-                $primaryKey = $model->getPrimaryKey() ?? null;
-
-                $files_url=fopen($path_video.'/'.$video_txt_name,'w') or die("Unable to open file!");
-                fwrite($files_url, $raw->video);
-                fclose($files_url);      
-            
-                $FFMpeg = FFMpeg::create([
-                    'ffmpeg.binaries'  => '/usr/local/bin/ffmpeg', // the path to the FFMpeg binary
-                    'ffprobe.binaries' => '/usr/local/bin/ffprobe', // the path to the FFProbe binary
-                    'timeout'          => 3600, // the timeout for the underlying process
-                    'ffmpeg.threads'   => 12,   // the number of threads that FFMpeg should use
-                ]);
-
-                $getID3 = new \getID3;
-
-                $var=base64_decode($raw->video);
-                $fp = fopen('temp/'.$token.'.'.$mime_type, 'w');
-                fwrite($fp,$var);
-                fclose($fp);
-
-                $file=$getID3->analyze('temp/'.$token.'.'.$mime_type);
-
-                $duration=round($file['playtime_seconds']);
-                
-
-                $video = $FFMpeg->open('temp/'.$token.'.'.$mime_type);
-                $video->frame(\FFMpeg\Coordinate\TimeCode::fromSeconds(3))
-                ->save('temp/'.$token.'.jpg');
-                
-                $path = 'temp/'.$token.'.jpg';
-                $type = pathinfo($path, PATHINFO_EXTENSION);
-                $data = file_get_contents($path);
-                $thumb_base64 = base64_encode($data);
-                
-                $files_url=fopen($path_thumbnail.'/'.$thumbnail_txt_name,'w') or die("Unable to open file!");
-                fwrite($files_url, $thumb_base64);
-                fclose($files_url);      
-
-                unlink('temp/'.$token.'.'.$mime_type);
-                unlink('temp/'.$token.'.jpg');
-
-
-                $models= new PostingDetail;
-
-                $models->id_posting =  $primaryKey;
-                $models->file_name =  $video_txt_name;
-                $models->file_type =  $raw->mime ?? "";
-                $models->file_size =  "0" ?? "";
-                $models->file_content =  $video_txt_name;
-                $models->height = $raw->height ?? "";
-                $models->width = $raw->width ?? "";
-                $models->duration = $duration;
-                $models->save();
-
-                
-                Yii::$app->response->statusCode = 200;
-                $response['code']=200;
-                $response['message']="Success.";
-                $response['data']=[];
-                return $response;
-
-            }else{
-                Yii::$app->response->statusCode = 400;
-                $response['code']=400;
-                $response['message']="Bad Request.";
-                $response['data']=[];
-                return $response;
-            }
-            
-        } catch (Exception $e) {
-            Yii::$app->response->statusCode = 400;
-            $response['code']=400;
-            $response['message']="Bad Request.";
-            $response['data']=[];
-            return $response;
-        }
-
-
-    }
-
-    public function actionContentVideo2()
-    {
-        $headers = Yii::$app->request->headers;
-
-        $employee = Employee::find()->where(['=','person_id',$_GET['token'] ?? ""])
-                ->one();
-
-        $person_id = $employee['person_id'] ?? null;
-        $owner_nama = $employee['nama'] ?? "";
-        $owner_email = $employee['email'] ?? "";
-
-        if($_SERVER['REQUEST_METHOD'] !='POST'){
-            Yii::$app->response->statusCode = 405;
-            $response['code']=405;
-            $response['message']="Method not allowed.";
-            $response['data']=[];
-            return $response;
-        }
-       $request = Yii::$app->request;
-       $getID3 = new \getID3;
-       //$file = $getID3->analyze($tmp_file);
-        //$file_cek = $_FILES;
-        //var_dump($file_cek);exit;
-       if(empty($_FILES['video']['size'])) {
-            Yii::$app->response->statusCode = 400;
-            $response['code']=400;
-            $response['message']="Bad Request.";
-            $response['data']=[];
-            return $response;
-        }
-
-        $tmp_file = $_FILES['video']['tmp_name'];
-
-        $file = $getID3->analyze($tmp_file);
-
-     //print_r($file);die();
-        $extention = $file['fileformat'];
-
-        $allowed_extensions = ["webm","mp4","ogv"];
-
-        $checkExtention = array_search($extention,$allowed_extensions);
-
-        if(empty($checkExtention)){
-            Yii::$app->response->statusCode = 400;
-            $response['code']=400;
-            $response['message']="Your file is not video.";
-            $response['data']=[];
-            return $response;
-        }
-
-        if ($_FILES['video']['error'] > 0){
-            Yii::$app->response->statusCode = 400;
-            $response['code']=400;
-            $response['message']="Bad Request.";
-            $response['data']=[];
-            return $response;
-        }else{
-
-            $filesize = $file['filesize'];
-            $file_type = $file['mime_type'];
-            $duration = round($file['playtime_seconds']);
-
-            //upload file
-            $file_name = "video_hcm_ism_".date("sih_dmy").".".$extention;
-            $thumbnail = "thumbnail_video_hcm_ism_".date("sih_dmy").".jpg";
-
-            
-
-             $FFMpeg = FFMpeg::create([
-                'ffmpeg.binaries'  => '/usr/local/bin/ffmpeg', // the path to the FFMpeg binary
-                'ffprobe.binaries' => '/usr/local/bin/ffprobe', // the path to the FFProbe binary
-                'timeout'          => 3600, // the timeout for the underlying process
-                'ffmpeg.threads'   => 12,   // the number of threads that FFMpeg should use
-            ]);
-            $video = $FFMpeg->open($_FILES["video"]["tmp_name"]);
-
-            $video->frame(\FFMpeg\Coordinate\TimeCode::fromSeconds(3))
-                ->save('thumbnail/'.$thumbnail);
-            move_uploaded_file($_FILES["video"]["tmp_name"], "video/".$file_name);
-
-
-
-        //save posting to db
-
-            $model = new Posting;
-            $model->id_group = $request->post('group');
-            $model->owner_id = $person_id;
-            $model->active = 1;
-            $model->like_count = 0;
-            $model->views_count = 0;
-            $model->comment_count = 0;
-            $model->type_posting = 3;
-            $model->group_name = $request->post('group_name') ?? "";
-            $model->owner_name = $owner_nama;
-            $model->caption = $request->post('caption');
-            $model->url_content =  $file_name;
-            $model->thumnail_content = $thumbnail;
-            $model->text = "";
-
-            try {
-
-                //$model->save();
-        
-        if($model->save()){
-        
-         $primaryKey = $model->getPrimaryKey() ?? null;
-                 
-         $models= new PostingDetail;
-
-                 $models->id_posting =  $primaryKey;
-                 $models->file_name =  $file_name;
-                 $models->file_type =  $request->post('mime') ?? "";
-                 $models->file_size =  $file['filesize'] ?? "";
-                 $models->file_content =  "";
-         $models->height = $request->post('height') ?? "";
-        $models->width = $request->post('width') ?? "";
-        $models->duration = $duration;
-                 $models->save();
-
-
-        }else{
-
-        }
-
-                Yii::$app->response->statusCode = 200;
-                $response['code']=200;
-                $response['message']="success.";
-                $response['data']=[];
-                return $response;
-                
-            } catch (Exception $e) {
-                Yii::$app->response->statusCode = 400;
-                $response['code']=400;
-                $response['message']="Bad Request.";
-                $response['data']=[];
-                return $response;
-            }
-
-            //return $video;
-
-        }
-
-    }
 
     public function actionContentStatus(){
         $helper = new Helper;
